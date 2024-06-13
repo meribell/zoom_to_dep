@@ -24,6 +24,8 @@
 from qgis.PyQt.QtCore import QSettings, QTranslator, QCoreApplication
 from qgis.PyQt.QtGui import QIcon
 from qgis.PyQt.QtWidgets import QAction
+from qgis.core import QgsExpression, QgsFeatureRequest
+
 
 # Initialize Qt resources from file resources.py
 from .resources import *
@@ -68,8 +70,6 @@ class ZoomToDep:
         # Must be set in initGui() to survive plugin reloads
         self.first_start = None
 
-        print("__init__")
-
     # noinspection PyMethodMayBeStatic
     def tr(self, message):
         """Get the translation for a string using Qt translation API.
@@ -85,8 +85,6 @@ class ZoomToDep:
         # noinspection PyTypeChecker,PyArgumentList,PyCallByClass
         return QCoreApplication.translate('ZoomToDep', message)
     
-        print("tr")
-
     def add_action(
         self,
         icon_path,
@@ -161,8 +159,6 @@ class ZoomToDep:
 
         return action
     
-        print("add_action")
-
     def initGui(self):
         """Create the menu entries and toolbar icons inside the QGIS GUI."""
 
@@ -176,9 +172,6 @@ class ZoomToDep:
         # will be set False in run()
         self.first_start = True
 
-        print("initGui")
-
-
     def unload(self):
         """Removes the plugin menu item and icon from QGIS GUI."""
         for action in self.actions:
@@ -189,6 +182,19 @@ class ZoomToDep:
         
         print("unload")
 
+    def zoom(self):
+        if self.dlg.depListWidget.currentItem():
+            current_feature = self.dlg.depListWidget.currentItem().text()
+            layer = self.iface.activeLayer()
+            expression = f'"nom"=\'{current_feature}\''
+            
+            features = layer.getFeatures(QgsFeatureRequest().setFilterExpression(expression))         
+            for feat in features:
+                self.iface.activeLayer().select(feat.id())
+                self.iface.actionZoomToSelected().trigger()
+            
+            #layer.selectByExpression(expression)
+            #self.iface.actionZoomToSelected().trigger()
 
     def run(self):
         """Run method that performs all the real work"""
@@ -198,6 +204,15 @@ class ZoomToDep:
         if self.first_start == True:
             self.first_start = False
             self.dlg = ZoomToDepDialog()
+            self.dlg.zoomPushButton.clicked.connect(self.zoom)
+
+        # remplir le listwidget
+        self.dlg.depListWidget.clear()
+        layer = self.iface.activeLayer()
+        for feat in layer.getFeatures():
+            self.dlg.depListWidget.addItem(feat["nom"])
+            self.dlg.depListWidget.sortItems(0)
+
 
         # show the dialog
         self.dlg.show()
@@ -208,4 +223,3 @@ class ZoomToDep:
             # Do something useful here - delete the line containing pass and
             # substitute with your code.
             pass
-        print("run")
